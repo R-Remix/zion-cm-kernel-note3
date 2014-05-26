@@ -26,6 +26,7 @@
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/input/doubletap2wake.h>
+#include <linux/input/sweep2wake.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/input.h>
@@ -61,8 +62,18 @@ MODULE_LICENSE("GPLv2");
 #define DT2W_DEFAULT		0
 
 #define DT2W_PWRKEY_DUR		60
-#define DT2W_FEATHER		200
-#define DT2W_TIME		700
+#define DT2W_FEATHER		150
+#define DT2W_TIME           	600
+
+/* Wake Gestures */
+#define WAKE_GESTURE		0x0b
+#define TRIGGER_TIMEOUT		50
+
+extern struct vib_trigger *vib_trigger;
+static struct input_dev *gesture_dev;
+extern int gestures_switch;
+extern void set_vibrate(int value);
+extern int vib_strength;
 
 /* Resources */
 int dt2w_switch = DT2W_DEFAULT;
@@ -70,7 +81,10 @@ static cputime64_t tap_time_pre = 0;
 static int touch_x = 0, touch_y = 0, touch_nr = 0, x_pre = 0, y_pre = 0;
 static bool touch_x_called = false, touch_y_called = false, touch_cnt = true;
 static bool scr_suspended = false, exec_count = true;
+static unsigned long pwrtrigger_time[2] = {0, 0};
+#ifndef CONFIG_HAS_EARLYSUSPEND
 static struct notifier_block dt2w_lcd_notif;
+#endif
 static struct input_dev * doubletap2wake_pwrdev;
 static DEFINE_MUTEX(pwrkeyworklock);
 static struct workqueue_struct *dt2w_input_wq;
@@ -82,6 +96,9 @@ static int __init read_dt2w_cmdline(char *dt2w)
 	if (strcmp(dt2w, "1") == 0) {
 		pr_info("[cmdline_dt2w]: DoubleTap2Wake enabled. | dt2w='%s'\n", dt2w);
 		dt2w_switch = 1;
+	} else if (strcmp(dt2w, "2") == 0) {
+		pr_info("[cmdline_dt2w]: DoubleTap2Wake fullscreen enabled. | dt2w='%s'\n", dt2w);
+		dt2w_switch = 2;
 	} else if (strcmp(dt2w, "0") == 0) {
 		pr_info("[cmdline_dt2w]: DoubleTap2Wake disabled. | dt2w='%s'\n", dt2w);
 		dt2w_switch = 0;
@@ -91,6 +108,26 @@ static int __init read_dt2w_cmdline(char *dt2w)
 	return 1;
 }
 __setup("dt2w=", read_dt2w_cmdline);
+
+/* Wake Gestures */
+void gestures_setdev(struct input_dev *input_device)
+{
+	gesture_dev = input_device;
+	return;
+}
+
+static void report_gesture(int gest)
+{
+        pwrtrigger_time[1] = pwrtrigger_time[0];
+        pwrtrigger_time[0] = jiffies;	
+
+	if (pwrtrigger_time[0] - pwrtrigger_time[1] < TRIGGER_TIMEOUT)
+		return;
+
+	printk("WG: gesture = %d\n", gest);
+	input_report_rel(gesture_dev, WAKE_GESTURE, gest);
+	input_sync(gesture_dev);
+}
 
 /* reset on finger release */
 static void doubletap2wake_reset(void) {
@@ -118,6 +155,12 @@ static DECLARE_WORK(doubletap2wake_presspwr_work, doubletap2wake_presspwr);
 
 /* PowerKey trigger */
 static void doubletap2wake_pwrtrigger(void) {
+        pwrtrigger_time[1] = pwrtrigger_time[0];
+        pwrtrigger_time[0] = jiffies;	
+
+	if (pwrtrigger_time[0] - pwrtrigger_time[1] < TRIGGER_TIMEOUT)
+		return;
+
 	schedule_work(&doubletap2wake_presspwr_work);
         return;
 }
@@ -131,6 +174,14 @@ static unsigned int calc_feather(int coord, int prev_coord) {
 	return calc_coord;
 }
 
+/* init a new touch */
+static void new_touch(int x, int y) {
+	tap_time_pre = ktime_to_ms(ktime_get());
+	x_pre = x;
+	y_pre = y;
+	touch_nr++;
+}
+
 /* Doubletap2wake main function */
 static void detect_doubletap2wake(int x, int y, bool st)
 {
@@ -139,31 +190,38 @@ static void detect_doubletap2wake(int x, int y, bool st)
         pr_info(LOGTAG"x,y(%4d,%4d) single:%s\n",
                 x, y, (single_touch) ? "true" : "false");
 #endif
+	if (x < 100 || x > 980)
+        	return;
+
+	if (dt2w_switch < 2 && y < 1000)
+        	return;
+
 	if ((single_touch) && (dt2w_switch > 0) && (exec_count) && (touch_cnt)) {
 		touch_cnt = false;
 		if (touch_nr == 0) {
-			tap_time_pre = ktime_to_ms(ktime_get());
-			x_pre = x;
-			y_pre = y;
-			touch_nr++;
+			new_touch(x, y);
 		} else if (touch_nr == 1) {
 			if ((calc_feather(x, x_pre) < DT2W_FEATHER) &&
 			    (calc_feather(y, y_pre) < DT2W_FEATHER) &&
 			    ((ktime_to_ms(ktime_get())-tap_time_pre) < DT2W_TIME))
 				touch_nr++;
-			else
+			else {
 				doubletap2wake_reset();
+				new_touch(x, y);
+			}
 		} else {
 			doubletap2wake_reset();
-			tap_time_pre = ktime_to_ms(ktime_get());
-			x_pre = x;
-			y_pre = y;
-			touch_nr++;
+			new_touch(x, y);
 		}
 		if ((touch_nr > 1)) {
-			pr_info(LOGTAG"ON\n");
+			pr_info(LOGTAG"double tap\n");
 			exec_count = false;
-			doubletap2wake_pwrtrigger();
+			set_vibrate(vib_strength);
+			if (gestures_switch) {
+				report_gesture(5);
+			} else {
+				doubletap2wake_pwrtrigger();
+			}
 			doubletap2wake_reset();
 		}
 	}
