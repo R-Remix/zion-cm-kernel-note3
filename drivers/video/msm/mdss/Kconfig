@@ -135,6 +135,7 @@ config FB_MSM_CAMERA_CSC
 	---help---
 		Support for camera CSC tuning
 
+
 config FB_MSM_EDP_SAMSUNG
 	bool "Support SAMSUNG EDP TCON"
 	default n
@@ -161,6 +162,11 @@ config FB_MSM_MDSS_SDC_WXGA_PANEL
 	default n
 	---help---
 	The MDSS SDC LCD Panel support
+
+config LCD_NOTIFY
+	bool "LCD notify kernel module"
+	---help---
+	Allows LCD on/off event notification to be sent throughout the kernel
 
 config LCD_CONNECTION_CHECK
 	bool "check if LCD connected or not and detect panel vendor"
