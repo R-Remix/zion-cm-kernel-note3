@@ -41,7 +41,11 @@ static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 	}
 	f2fs_unlock_op(sbi);
 
-	inode->i_uid = current_fsuid();
+	if (IS_ANDROID_EMU(sbi, F2FS_I(dir), F2FS_I(dir)))
+		f2fs_android_emu(sbi, inode, &inode->i_uid,
+				 &inode->i_gid, &mode);
+	else {
+		inode->i_uid = current_fsuid();
 
 	if (dir->i_mode & S_ISGID) {
 		inode->i_gid = dir->i_gid;
@@ -49,6 +53,7 @@ static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 			mode |= S_ISGID;
 	} else {
 		inode->i_gid = current_fsgid();
+		}
 	}
 
 	inode->i_ino = ino;
@@ -424,12 +429,17 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		}
 
 		f2fs_set_link(new_dir, new_entry, new_page, old_inode);
+		down_write(&F2FS_I(old_inode)->i_sem);
 		F2FS_I(old_inode)->i_pino = new_dir->i_ino;
+		up_write(&F2FS_I(old_inode)->i_sem);
 
 		new_inode->i_ctime = CURRENT_TIME;
+		down_write(&F2FS_I(new_inode)->i_sem);
 		if (old_dir_entry)
 			drop_nlink(new_inode);
 		drop_nlink(new_inode);
+		up_write(&F2FS_I(new_inode)->i_sem);
+
 		mark_inode_dirty(new_inode);
 
 		if (!new_inode->i_nlink)
@@ -459,7 +469,9 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		if (old_dir != new_dir) {
 			f2fs_set_link(old_inode, old_dir_entry,
 						old_dir_page, new_dir);
+			down_write(&F2FS_I(old_inode)->i_sem);
 			F2FS_I(old_inode)->i_pino = new_dir->i_ino;
+			up_write(&F2FS_I(old_inode)->i_sem);
 			update_inode_page(old_inode);
 		} else {
 			kunmap(old_dir_page);
