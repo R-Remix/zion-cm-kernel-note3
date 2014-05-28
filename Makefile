@@ -398,8 +398,6 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -Werror-implicit-function-declaration \
 		   -Wno-format-security \
 		   -Wno-maybe-uninitialized \
-		   -Wno-array-bounds \
-		   -Wno-sequence-point \
 		   -Wno-sizeof-pointer-memaccess \
 		   -fno-delete-null-pointer-checks
 KBUILD_AFLAGS_KERNEL :=
