@@ -685,11 +685,19 @@ static ssize_t show_bios_limit(struct cpufreq_policy *policy, char *buf)
 	return sprintf(buf, "%u\n", policy->cpuinfo.max_freq);
 }
 
-#ifdef CONFIG_CPU_VOLTAGE_TABLE
-extern ssize_t show_UV_mV_table(struct cpufreq_policy *policy, char *buf);
-extern ssize_t store_UV_mV_table(struct cpufreq_policy *policy,
-				 const char *buf, size_t count);
-#endif
+extern ssize_t vc_get_vdd(char *buf);
+extern void vc_set_vdd(const char *buf);
+
+static ssize_t show_UV_mV_table(struct cpufreq_policy *policy, char *buf)
+{
+       return vc_get_vdd(buf);
+}
+static ssize_t store_UV_mV_table
+(struct cpufreq_policy *policy, const char *buf, size_t count)
+{
+       vc_set_vdd(buf);
+       return count;
+}
 
 cpufreq_freq_attr_ro_perm(cpuinfo_cur_freq, 0400);
 cpufreq_freq_attr_ro(cpuinfo_min_freq);
@@ -709,10 +717,16 @@ cpufreq_freq_attr_ro(cpu_load);
 cpufreq_freq_attr_ro(scaling_min_freq);
 #else
 cpufreq_freq_attr_rw(scaling_min_freq);
-cpufreq_freq_attr_rw(scaling_min_freq);
-#ifdef CONFIG_CPU_VOLTAGE_TABLE
-cpufreq_freq_attr_rw(UV_mV_table);
 #endif
+#else
+#ifdef CONFIG_ARCH_MSM8226
+cpufreq_freq_attr_ro(scaling_min_freq);
+#else
+cpufreq_freq_attr_rw(scaling_min_freq);
+#endif
+#endif
+
+
 cpufreq_freq_attr_rw(scaling_max_freq);
 cpufreq_freq_attr_rw(scaling_governor);
 cpufreq_freq_attr_rw(scaling_setspeed);
@@ -734,9 +748,7 @@ static struct attribute *default_attrs[] = {
 	&scaling_driver.attr,
 	&scaling_available_governors.attr,
 	&scaling_setspeed.attr,
-#ifdef CONFIG_CPU_VOLTAGE_TABLE
 	&UV_mV_table.attr,
-#endif
 	NULL
 };
 
