@@ -367,7 +367,7 @@ CFLAGS_KERNEL   = -mfpu=neon-vfpv4 \
                   -fgcse-las \
                   -fpredictive-commoning \
                   -munaligned-access \
-		  -Ofast
+		  -O2
 
 ifeq ($(ENABLE_GRAPHITE),true)
 CFLAGS_KERNEL	+= -fgraphite -floop-parallelize-all -ftree-loop-linear -floop-interchange -floop-strip-mine -floop-block -floop-flatten
