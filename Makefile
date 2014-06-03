@@ -245,7 +245,7 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 
 HOSTCC       = gcc
 HOSTCXX      = g++
-HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -O3 -fomit-frame-pointer -fgcse-las
+HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -Ofast -fomit-frame-pointer -fgcse-las
 HOSTCXXFLAGS = -Ofast  -fgcse-las
 
 # Decide whether to build built-in, modular, or both.
@@ -367,7 +367,7 @@ CFLAGS_KERNEL   = -mfpu=neon-vfpv4 \
                   -fgcse-las \
                   -fpredictive-commoning \
                   -munaligned-access \
-		  -O2
+		  -Ofast
 
 ifeq ($(ENABLE_GRAPHITE),true)
 CFLAGS_KERNEL	+= -fgraphite -floop-parallelize-all -ftree-loop-linear -floop-interchange -floop-strip-mine -floop-block -floop-flatten
