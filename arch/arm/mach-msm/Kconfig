@@ -2429,6 +2429,7 @@ config TURBO_BOOST
 	  than stock maximum.  When more than 2 cores are active, the clock
 	  is limited to stock max speeds
 
+
 config MSM_CPUFREQ_LIMITER
 	tristate "MSM CPU frequency limiter"
 	default n
@@ -2445,6 +2446,12 @@ config MSM_SLEEPER
 	default y
 	help
 	  Limit max frequency while screen is off
+
+config CPU_VOLTAGE_TABLE
+	bool "Enable CPU Voltage Table via sysfs for adjustements"
+	default n
+	help
+	  DTS based kernel User Votlage Control
 
 config MSM_AVS_HW
 	bool "Enable Adaptive Voltage Scaling (AVS)"
